@@ -22,13 +22,13 @@ npm install
 
 ## Запуск
 
-# разработка с nodemon
+## разработка с nodemon
 npm run dev
 
-# production
+## production
 npm start
 
-# Мок без БД
+## Мок без БД
 npm run mock
 
 ## API эндпоинты
