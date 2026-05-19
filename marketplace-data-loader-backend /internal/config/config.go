@@ -1,0 +1,89 @@
+// Package config содержит структуры конфигурации и функцию загрузки из переменных окружения
+package config
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/kelseyhightower/envconfig"
+)
+
+type Config struct {
+	WB       WBConfig
+	DB       DBConfig
+	Ozon     OzonConfig
+	MS       MoyskladConfig
+	Settings SettingsConfig
+	Port     int    `envconfig:"PORT" default:"3000"`
+	Env      string `envconfig:"NODE_ENV" default:"development"`
+}
+
+type WBConfig struct {
+	Token             string        `envconfig:"API_TOKEN" required:"true"`
+	BaseURL           string        `envconfig:"BASE_URL" default:"https://statistics-api.wildberries.ru"`
+	OrdersEndpoint    string        `envconfig:"ORDERS_ENDPOINT" default:"/api/v1/supplier/orders"`
+	Timeout           time.Duration `envconfig:"TIMEOUT" default:"30s"`
+	MaxRetries        int           `envconfig:"MAX_RETRIES" default:"3"`
+	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"61000"`
+	Flag              int           `envconfig:"FLAG" default:"0"`
+}
+
+type DBConfig struct {
+	Host              string `envconfig:"HOST" required:"true"`
+	Port              int    `envconfig:"PORT" default:"5432"`
+	Name              string `envconfig:"NAME" required:"true"`
+	User              string `envconfig:"USER" required:"true"`
+	Password          string `envconfig:"PASSWORD" required:"true"`
+	PoolMax           int    `envconfig:"POOL_MAX" default:"20"`
+	PoolIdleTimeoutMs int    `envconfig:"POOL_IDLE_TIMEOUT_MS" default:"30000"`
+	PoolConnTimeoutMs int    `envconfig:"POOL_CONN_TIMEOUT_MS" default:"5000"`
+}
+
+type OzonConfig struct {
+	ClientID          string        `envconfig:"CLIENT_ID" required:"true"`
+	APIKey            string        `envconfig:"API_KEY" required:"true"`
+	BaseURL           string        `envconfig:"BASE_URL" default:"https://api-seller.ozon.ru"`
+	FBOEndpoint       string        `envconfig:"FBO_ENDPOINT" default:"/v2/posting/fbo/list"`
+	FBSEndpoint       string        `envconfig:"FBS_ENDPOINT" default:"/v3/posting/fbs/list"`
+	Limit             int           `envconfig:"LIMIT" default:"1000"`
+	Timeout           time.Duration `envconfig:"TIMEOUT" default:"30s"`
+	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"200"`
+}
+
+type MoyskladConfig struct {
+	Token               string        `envconfig:"TOKEN" required:"true"`
+	BaseURL             string        `envconfig:"BASE_URL" default:"https://api.moysklad.ru/api/remap/1.2"`
+	Timeout             time.Duration `envconfig:"TIMEOUT" default:"60s"`
+	MaxRetries          int           `envconfig:"MAX_RETRIES" default:"5"`
+	RetryDelayMs        int           `envconfig:"RETRY_DELAY_MS" default:"5000"`
+	PaginationDelayMs   int           `envconfig:"PAGINATION_DELAY_MS" default:"2000"`
+	HeavyRequestDelayMs int           `envconfig:"HEAVY_REQUEST_DELAY_MS" default:"20000"`
+}
+
+type SettingsConfig struct {
+	BatchSize        int    `envconfig:"BATCH_SIZE" default:"1000"`
+	DaysToLoad       int    `envconfig:"DAYS_TO_LOAD" default:"30"`
+	ExcludeToday     bool   `envconfig:"EXCLUDE_TODAY" default:"true"`
+	APILimit         int    `envconfig:"API_LIMIT" default:"80000"`
+	UniqueOrderField string `envconfig:"UNIQUE_ORDER_FIELD" default:"srid"`
+}
+
+func LoadConfig() (*Config, error) {
+	var cfg Config
+	err := envconfig.Process("", &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка загрузки конфигурации: %w", err)
+	}
+
+	if cfg.WB.Token == "" {
+		return nil, fmt.Errorf("WB_API_TOKEN не может быть пустым")
+	}
+	if cfg.Ozon.ClientID == "" || cfg.Ozon.APIKey == "" {
+		return nil, fmt.Errorf("OZON_CLIENT_ID и OZON_API_KEY обязательны")
+	}
+	if cfg.MS.Token == "" {
+		return nil, fmt.Errorf("MS_TOKEN обязателен")
+	}
+
+	return &cfg, nil
+}
