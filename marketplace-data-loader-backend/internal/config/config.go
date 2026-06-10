@@ -1,4 +1,4 @@
-// Package config управляет конфигурацией приложения.
+// Package config loads and validates application configuration from environment variables
 package config
 
 import (
@@ -6,31 +6,31 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-) 
+)
 
-// Config содержит конфигурационные параметры всего приложения.
+// Config holds all configuration parameters for the application
 type Config struct {
-	WB       WBConfig
-	DB       DBConfig
-	Ozon     OzonConfig
-	MS       MoyskladConfig
-	Settings SettingsConfig
-	Port     int    `envconfig:"PORT" default:"3000"`
-	Env      string `envconfig:"NODE_ENV" default:"development"`
+	WB       WBConfig       `envconfig:"WB"`
+	DB       DBConfig       `envconfig:"DB"`
+	Ozon     OzonConfig     `envconfig:"OZON"`
+	MS       MoyskladConfig `envconfig:"MS"`
+	Settings SettingsConfig `envconfig:"SETTINGS"`
+	Port     int            `envconfig:"PORT" default:"3000"`
+	Env      string         `envconfig:"APP_ENV" default:"development"`
 }
 
-// WBConfig содержит параметры подключения к API Wildberries.
+// WBConfig contains Wildberries API connection parameters
 type WBConfig struct {
 	Token             string        `envconfig:"API_TOKEN" required:"true"`
 	BaseURL           string        `envconfig:"BASE_URL" default:"https://wildberries.ru"`
 	OrdersEndpoint    string        `envconfig:"ORDERS_ENDPOINT" default:"/api/v1/supplier/orders"`
 	Timeout           time.Duration `envconfig:"TIMEOUT" default:"30s"`
 	MaxRetries        int           `envconfig:"MAX_RETRIES" default:"3"`
-	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"61000"` // Ограничение частоты запросов к разделу статистики WB
+	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"61000"`
 	Flag              int           `envconfig:"FLAG" default:"0"`
 }
 
-// DBConfig содержит конфигурационные параметры пула соединений с БД.
+// DBConfig contains PostgreSQL connection pool parameters
 type DBConfig struct {
 	Host              string `envconfig:"HOST" required:"true"`
 	Port              int    `envconfig:"PORT" default:"5432"`
@@ -42,7 +42,7 @@ type DBConfig struct {
 	PoolConnTimeoutMs int    `envconfig:"POOL_CONN_TIMEOUT_MS" default:"5000"`
 }
 
-// OzonConfig содержит параметры подключения к Seller API Ozon.
+// OzonConfig contains Ozon Seller API connection parameters
 type OzonConfig struct {
 	ClientID          string        `envconfig:"CLIENT_ID" required:"true"`
 	APIKey            string        `envconfig:"API_KEY" required:"true"`
@@ -54,7 +54,7 @@ type OzonConfig struct {
 	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"200"`
 }
 
-// MoyskladConfig содержит параметры интеграции с JSON API МойСклад.
+// MoyskladConfig contains MoySklad JSON API integration parameters
 type MoyskladConfig struct {
 	Token               string        `envconfig:"TOKEN" required:"true"`
 	BaseURL             string        `envconfig:"BASE_URL" default:"https://moysklad.ru"`
@@ -62,10 +62,10 @@ type MoyskladConfig struct {
 	MaxRetries          int           `envconfig:"MAX_RETRIES" default:"5"`
 	RetryDelayMs        int           `envconfig:"RETRY_DELAY_MS" default:"5000"`
 	PaginationDelayMs   int           `envconfig:"PAGINATION_DELAY_MS" default:"2000"`
-	HeavyRequestDelayMs int           `envconfig:"HEAVY_REQUEST_DELAY_MS" default:"20000"` // Ограничение лимитов на тяжелые отчеты остатков ERP
+	HeavyRequestDelayMs int           `envconfig:"HEAVY_REQUEST_DELAY_MS" default:"20000"`
 }
 
-// SettingsConfig содержит глобальные параметры бизнес-логики синхронизации.
+// SettingsConfig holds global synchronization parameters
 type SettingsConfig struct {
 	BatchSize        int    `envconfig:"BATCH_SIZE" default:"1000"`
 	DaysToLoad       int    `envconfig:"DAYS_TO_LOAD" default:"30"`
@@ -74,26 +74,19 @@ type SettingsConfig struct {
 	UniqueOrderField string `envconfig:"UNIQUE_ORDER_FIELD" default:"srid"`
 }
 
-// LoadConfig выполняет инициализацию и валидацию конфигурации из переменных окружения.
+// LoadConfig reads configuration from environment variables with proper prefixes
 func LoadConfig() (*Config, error) {
 	var cfg Config
-	err := envconfig.Process("", &cfg)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка загрузки конфигурации: %w", err)
+
+	if err := envconfig.Process("", &cfg); err != nil {
+		return nil, fmt.Errorf("process env config: %w", err)
 	}
 
-	if cfg.WB.Token == "" {
-		return nil, fmt.Errorf("WB_API_TOKEN не может быть пустым")
+	if cfg.Port < 1 || cfg.Port > 65535 {
+		return nil, fmt.Errorf("invalid app port: %d", cfg.Port)
 	}
-	if cfg.Ozon.ClientID == "" || cfg.Ozon.APIKey == "" {
-		return nil, fmt.Errorf("OZON_CLIENT_ID и OZON_API_KEY обязательны")
-	}
-	if cfg.MS.Token == "" {
-		return nil, fmt.Errorf("MS_TOKEN обязателен")
-	}
-
 	if cfg.DB.Port < 1 || cfg.DB.Port > 65535 {
-		return nil, fmt.Errorf("DB_PORT должен быть в диапазоне 1-65535, получен %d", cfg.DB.Port)
+		return nil, fmt.Errorf("invalid db port: %d", cfg.DB.Port)
 	}
 
 	return &cfg, nil
