@@ -1,9 +1,10 @@
-// Package repository provides implementations of domain repository interfaces using PostgreSQL.
+// Package repository provides implementations of domain repository interfaces using PostgreSQL
 package repository
 
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/jackc/pgx/v5"
@@ -11,39 +12,41 @@ import (
 	"github.com/kazantsev-developer/marketplace-data-loader-backend/internal/domain"
 )
 
-// WbOrderRepo реализует domain.WbOrderRepository с использованием pgxpool.
+// WbOrderRepo is a PostgreSQL implementation of domain.WbOrderRepository
 type WbOrderRepo struct {
 	pool *pgxpool.Pool
 }
 
-// NewWbOrderRepo создаёт новый экземпляр WbOrderRepo.
+// NewWbOrderRepo returns a new WbOrderRepo instance
 func NewWbOrderRepo(pool *pgxpool.Pool) *WbOrderRepo {
 	return &WbOrderRepo{pool: pool}
 }
 
-// UpsertBatch выполняет пакетную вставку или обновление заказов.
+// UpsertBatch inserts or updates a batch of WB orders
 func (r *WbOrderRepo) UpsertBatch(ctx context.Context, orders []domain.WbOrder) (int, error) {
 	if len(orders) == 0 {
 		return 0, nil
 	}
 
-	// Строим пакетный запрос
+	const query = `
+		INSERT INTO wb_orders (
+			srid, g_number, date, last_change_date, supplier_article,
+			tech_size, barcode, total_price, discount_percent, warehouse_name,
+			is_cancel, dest_city_name, country_name, oblast_okrug_name, region_name,
+			nm_id, category, brand
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+			$11, $12, $13, $14, $15, $16, $17, $18
+		)
+		ON CONFLICT (srid) DO UPDATE SET
+			last_change_date = EXCLUDED.last_change_date,
+			is_cancel = EXCLUDED.is_cancel,
+			total_price = EXCLUDED.total_price,
+			updated_at = CURRENT_TIMESTAMP
+	`
+
 	batch := &pgx.Batch{}
 	for _, order := range orders {
-		query := `
-			INSERT INTO wb_orders (
-				srid, g_number, date, last_change_date, supplier_article,
-				tech_size, barcode, total_price, discount_percent, warehouse_name,is_cancel, dest_city_name, country_name, oblast_okrug_name,region_name, nm_id, category, brand
-			) VALUES (
-				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-				$11, $12, $13, $14, $15, $16, $17, $18
-			)
-			ON CONFLICT (srid) DO UPDATE SET
-				last_change_date = EXCLUDED.last_change_date,
-				is_cancel = EXCLUDED.is_cancel,
-				total_price = EXCLUDED.total_price,
-				updated_at = CURRENT_TIMESTAMP
-		`
 		batch.Queue(query,
 			order.Srid,
 			order.GNumber,
@@ -66,71 +69,78 @@ func (r *WbOrderRepo) UpsertBatch(ctx context.Context, orders []domain.WbOrder) 
 		)
 	}
 
-	// Отправляем пакет одним запросом
 	br := r.pool.SendBatch(ctx, batch)
 	defer br.Close()
 
-	// Считаем количество обработанных строк
 	var totalRows int64
-	for i := 0; i < len(orders); i++ {
+	for i := range orders {
 		ct, err := br.Exec()
 		if err != nil {
-			return 0, fmt.Errorf("ошибка вставки заказа %d: %w", i, err)
+			return 0, fmt.Errorf("execute batch item %d: %w", i, err)
 		}
-
 		totalRows += ct.RowsAffected()
 	}
 
 	return int(totalRows), nil
 }
 
-// GetList возвращает список заказов с фильтрацией и пагинацией.
+// GetList returns a filtered and paginated list of WB orders
 func (r *WbOrderRepo) GetList(ctx context.Context, filter domain.OrderFilter) ([]domain.WbOrder, int, error) {
-	// Строим динамический WHERE
-	where := "1=1"
-	args := []interface{}{}
-	argIdx := 1
+	var (
+		sb   strings.Builder
+		args = make([]any, 0, 4)
+		idx  = 1
+	)
+
+	sb.Grow(512)
+	sb.WriteString("WHERE 1=1")
 
 	if filter.From != "" {
-		where += fmt.Sprintf(" AND date >= $%d", argIdx)
+		fmt.Fprintf(&sb, " AND date >= $%d", idx)
 		args = append(args, filter.From)
-		argIdx++
+		idx++
 	}
 	if filter.To != "" {
-		where += fmt.Sprintf(" AND date <= $%d", argIdx)
+		fmt.Fprintf(&sb, " AND date <= $%d", idx)
 		args = append(args, filter.To)
-		argIdx++
+		idx++
 	}
 
-	// Запрос на получение записей
-	query := fmt.Sprintf(`
+	whereClause := sb.String()
+
+	sb.Reset()
+	sb.WriteString(`
 		SELECT srid, g_number, date, last_change_date, supplier_article,
-		       tech_size, barcode, total_price, discount_percent, warehouse_name, is_cancel, dest_city_name, country_name, oblast_okrug_name, region_name, nm_id, category, brand, created_at, updated_at
-		FROM wb_orders
-		WHERE %s
-		ORDER BY date DESC
-		LIMIT $%d OFFSET $%d
-	`, where, argIdx, argIdx+1)
-	args = append(args, filter.Limit, filter.Offset)
+		       tech_size, barcode, total_price, discount_percent, warehouse_name,
+		       is_cancel, dest_city_name, country_name, oblast_okrug_name, region_name,
+		       nm_id, category, brand, created_at, updated_at
+		FROM wb_orders `)
+	sb.WriteString(whereClause)
+	sb.WriteString(" ORDER BY date DESC")
+
+	fmt.Fprintf(&sb, " LIMIT $%d OFFSET $%d", idx, idx+1)
+	dataArgs := append(args, filter.Limit, filter.Offset)
 
 	var orders []domain.WbOrder
-	if err := pgxscan.Select(ctx, r.pool, &orders, query, args...); err != nil {
-		return nil, 0, fmt.Errorf("ошибка получения заказов: %w", err)
+	if err := pgxscan.Select(ctx, r.pool, &orders, sb.String(), dataArgs...); err != nil {
+		return nil, 0, fmt.Errorf("select orders: %w", err)
 	}
 
-	// Запрос на общее количество (для пагинации)
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM wb_orders WHERE %s", where)
+	sb.Reset()
+	sb.WriteString("SELECT COUNT(*) FROM wb_orders ")
+	sb.WriteString(whereClause)
+
 	var total int
-	if err := pgxscan.Get(ctx, r.pool, &total, countQuery, args[:len(args)-2]...); err != nil {
-		return nil, 0, fmt.Errorf("ошибка подсчёта заказов: %w", err)
+	if err := pgxscan.Get(ctx, r.pool, &total, sb.String(), args...); err != nil {
+		return nil, 0, fmt.Errorf("count orders: %w", err)
 	}
 
 	return orders, total, nil
 }
 
-// GetStats возвращает агрегированную статистику по заказам WB.
+// GetStats returns aggregated statistics for WB orders
 func (r *WbOrderRepo) GetStats(ctx context.Context) (*domain.WbOrderStats, error) {
-	query := `
+	const query = `
 		SELECT 
 			COUNT(*) as total_orders,
 			SUM(CASE WHEN is_cancel THEN 1 ELSE 0 END) as cancelled_orders,
@@ -138,16 +148,18 @@ func (r *WbOrderRepo) GetStats(ctx context.Context) (*domain.WbOrderStats, error
 			COUNT(DISTINCT nm_id) as unique_products
 		FROM wb_orders
 	`
+
 	var stats domain.WbOrderStats
 	if err := pgxscan.Get(ctx, r.pool, &stats, query); err != nil {
-		return nil, fmt.Errorf("ошибка получения статистики: %w", err)
+		return nil, fmt.Errorf("get order stats: %w", err)
 	}
+
 	return &stats, nil
 }
 
-// CountForPeriod возвращает количество заказов по дням для графика.
+// CountForPeriod returns the number of orders per day within a period
 func (r *WbOrderRepo) CountForPeriod(ctx context.Context, from, to string) ([]domain.DailyChartItem, error) {
-	query := `
+	const query = `
 		SELECT 
 			d::date AS date,
 			COALESCE(COUNT(wb.srid), 0) AS count
@@ -156,9 +168,11 @@ func (r *WbOrderRepo) CountForPeriod(ctx context.Context, from, to string) ([]do
 		GROUP BY d::date
 		ORDER BY d::date
 	`
+
 	var items []domain.DailyChartItem
 	if err := pgxscan.Select(ctx, r.pool, &items, query, from, to); err != nil {
-		return nil, fmt.Errorf("ошибка получения графика: %w", err)
+		return nil, fmt.Errorf("select orders chart: %w", err)
 	}
+
 	return items, nil
 }

@@ -37,6 +37,7 @@ type DBConfig struct {
 	Name              string `envconfig:"NAME" required:"true"`
 	User              string `envconfig:"USER" required:"true"`
 	Password          string `envconfig:"PASSWORD" required:"true"`
+	SSLMode           string `envconfig:"SSLMODE" default:"disable"`
 	PoolMax           int    `envconfig:"POOL_MAX" default:"20"`
 	PoolIdleTimeoutMs int    `envconfig:"POOL_IDLE_TIMEOUT_MS" default:"30000"`
 	PoolConnTimeoutMs int    `envconfig:"POOL_CONN_TIMEOUT_MS" default:"5000"`
