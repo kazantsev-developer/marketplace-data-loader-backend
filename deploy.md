@@ -1,60 +1,109 @@
-# Инструкция по деплою (Ubuntu 24.04)
+# Deployment (Ubuntu 24.04)
 
-1. **Установка окружения:**
-   `apt update && apt install -y nodejs npm postgresql`
+## Prerequisites
 
-2. **Настройка проекта:**
-   `npm install axios luxon pg dotenv`
-   `nano .env` (Добавить WB_API_TOKEN и DATABASE_URL)
+- Go 1.24+
+- PostgreSQL 16+
+- systemd
 
-3. **База данных:**
-   Выполнить команды из `init.sql` в вашей БД PostgreSQL.
+## Build
 
-4. **Настройка Cron (каждые 30 минут):**
-   `crontab -e`
-   Добавить:
-   `*/30 * * * * cd /путь/к/проекту && /usr/bin/node src/index.js >> sync.log 2>&1`
-   `*/30 * * * * cd /root/wb-orders-loader && node index-remains.js >> /var/log/wb-remains.log 2>&1`
+cd /opt/marketplace-data-loader
+go build -o bin/server ./cmd/server
+go build -o bin/sync ./cmd/sync
 
-5. **Проверка:**
-   `node src/index.js`
-   `node index-remains.js`
+## Environment
 
-## МойСклад (остатки по складам)
+cp .env.example .env
 
-- **Файлы:** `index-moysklad.js`, `src/api/moyskladClient.js`, `src/db/moyskladQueries.js`
-- **Добавить в .env:** `MS_TOKEN`, `MS_BASE_URL=https://api.moysklad.ru/api/remap/1.2`
-- **Cron:** `*/30 * * * * cd /root/wb-orders-loader && node index-moysklad.js >> /root/wb-orders-loader/logs/moysklad-cron.log 2>&1`
-- **Проверка:** `node index-moysklad.js`
+# Edit with production values
 
-## Карточки товаров Wildberries
+## Database
 
-- **Файлы:** `index-cards.js`, `src/api/cardsClient.js`, `src/db/cardsQueries.js`
-- **Таблицы в БД:** уже включены в `init.sql` (`wb_cards`, `sync_cursor_state`)
-- **Настройка .env:** используются существующие `WB_API_TOKEN` и параметры БД (дополнительные переменные не требуются)
-- **Cron:** `*/30 * * * * cd /root/wb-orders-loader && node index-cards.js >> /var/log/wb-cards.log 2>&1`
-- **Проверка:**
-  - `node index-cards.js` (полная выгрузка при первом запуске)
-  - `node index-cards.js check` (проверка последней синхронизации)
-  - `node index-cards.js stats` (статистика по карточкам)
+createdb marketplace
+psql -d marketplace -f migrations/001_init.up.sql
 
-## Озон (заказы FBO/FBS)
+## Systemd Services
 
-- **Файлы:** `index-ozon-orders.js`, `src/api/ozonOrdersClient.js`, `src/db/ozonOrdersQueries.js`
-- **Настройка .env:** используются существующие `OZON_CLIENT_ID`, `OZON_API_KEY` (см. секцию "Озон" в `.env`)
-- **Cron:** `*/30 * * * * cd /root/wb-orders-loader && node index-ozon-orders.js >> /var/log/ozon-orders.log 2>&1`
-- **Проверка:**
-  - `node index-ozon-orders.js` (полная выгрузка)
-  - `node index-ozon-orders.js check` (проверка последней синхронизации)
-  - `node index-ozon-orders.js stats` (статистика по заказам)
+### API service (/etc/systemd/system/marketplace-api.service)
 
-## Озон (остатки FBO)
+[Unit]
+Description=Marketplace Data Loader API
+After=network.target postgresql.service
 
-- **Файлы:** `index-ozon-stocks.js`, `src/api/ozonStocksClient.js`, `src/db/ozonStocksQueries.js`
-- **Таблицы в БД:** уже включены в `init.sql` (`ozon_remains`)
-- **Настройка .env:** используются существующие `OZON_CLIENT_ID` и `OZON_API_KEY` (из секции заказов)
-- **Cron:** `*/30 * * * * cd /root/wb-orders-loader && node index-ozon-stocks.js >> /var/log/ozon-stocks.log 2>&1`
-- **Проверка:**
-  - `node index-ozon-stocks.js` (полная выгрузка)
-  - `node index-ozon-stocks.js check` (проверка последней синхронизации)
-  - `node index-ozon-stocks.js stats` (статистика по остаткам)
+[Service]
+Type=simple
+User=app
+WorkingDirectory=/opt/marketplace-data-loader
+ExecStart=/opt/marketplace-data-loader/bin/server
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+### Sync service template (/etc/systemd/system/marketplace-sync@.service)
+
+[Unit]
+Description=Marketplace Sync %i
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=app
+WorkingDirectory=/opt/marketplace-data-loader
+ExecStart=/opt/marketplace-data-loader/bin/sync --entity=%i
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+## Scheduled Sync (systemd Timers)
+
+Create a timer for each entity:
+
+- marketplace-sync-ozon_orders.timer
+- marketplace-sync-ozon_stocks.timer
+- marketplace-sync-wb_orders.timer
+- marketplace-sync-wb_remains.timer
+- marketplace-sync-wb_cards.timer
+- marketplace-sync-ms_stocks.timer
+
+Example (/etc/systemd/system/marketplace-sync-ozon_orders.timer):
+
+[Unit]
+Description=Sync Ozon orders every 30 min
+
+[Timer]
+OnCalendar=\*:0/30
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+Enable and start:
+
+systemctl enable marketplace-api
+systemctl start marketplace-api
+systemctl enable marketplace-sync-ozon_orders.timer
+systemctl start marketplace-sync-ozon_orders.timer
+
+# repeat for all timers
+
+## Logging
+
+- API logs: journalctl -u marketplace-api -f
+- Sync logs: journalctl -u marketplace-sync@ozon_orders -f
+  All logs are JSON – forward to your aggregator (ELK / Loki).
+
+## Verification
+
+curl http://localhost:3000/api/health
+/opt/marketplace-data-loader/bin/sync --entity=ozon_orders
+journalctl -u marketplace-sync@ozon_orders --since "5 min ago"
+
+## Environment in Production
+
+Set APP_ENV=production and adjust DB_POOL_MAX etc. in .env.

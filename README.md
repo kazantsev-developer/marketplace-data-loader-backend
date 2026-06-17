@@ -1,58 +1,101 @@
-Система загрузки и агрегации данных из Wildberries, Ozon и МойСклад.
+# Marketplace Data Loader
 
-## Стек
+High-performance data synchronization service for Ozon, Wildberries, and MoySklad.  
+Exposes a REST API for frontend dashboards and monitoring.
 
-- Node.js (ES modules)
-- Express.js
-- PostgreSQL
-- Axios
-- Luxon
+## Stack
 
-## Возможности
+- Go 1.24+history
+- PostgreSQL 16+
+- Docker (optional)
 
-- Загрузка заказов WB / Ozon (FBO, FBS)
-- Синхронизация остатков и карточек товаров
-- Интеграция с МойСклад (остатки по складам)
-- REST API для фронтенда
-- Логирование синхронизаций
+## Features
 
-## Установка
+- **Ozon** – orders (FBO/FBS) and FBO stock
+- **Wildberries** – orders, stock, product cards (full sync)
+- **MoySklad** – warehouse stock snapshots and product aggregates
+- **REST API** – filtered lists, statistics, charts
+- **Sync logging** – every job is persisted with status, counts, and duration
 
-npm install
+## Quick Start
 
-## Запуск
+git clone <repo-url>
+cd marketplace-data-loader-backend
+go build -o bin/server ./cmd/server
+go build -o bin/sync ./cmd/sync
 
-## разработка с nodemon
-npm run dev
+createdb marketplace
+psql -d marketplace -f migrations/001_init.up.sql
 
-## production
-npm start
+cp .env.example .env # fill in all tokens
 
-## Мок без БД
-npm run mock
+./bin/server # start API
+./bin/sync --entity=ozon_orders # or others:
 
-## API эндпоинты
+# available entities: ozon_orders, ozon_stocks, wb_orders, wb_remains, wb_cards, ms_stocks
 
-/api/wb/orders – заказы Wildberries
-/api/wb/remains – остатки WB
-/api/wb/cards – карточки товаров
-/api/ozon/orders – заказы Ozon
-/api/ozon/remains – остатки Ozon
-/api/moysklad/stocks – остатки МойСклад
-/api/dashboard/stats – общая статистика
-/api/charts/orders-daily – динамика заказов
-/api/sync/logs – логи синхронизации
+Or with Docker Compose:
+docker-compose up -d
 
-## Переменные окружения
+## API Endpoints
 
-Создайте .env файл:
+### Ozon
+
+- GET /api/ozon/orders – orders (FBO/FBS)
+- GET /api/ozon/orders/stats – stats by scheme
+- GET /api/ozon/remains – FBO stock list
+- GET /api/ozon/remains/stats – stock stats with top brands
+
+### Wildberries
+
+- GET /api/wb/orders – orders list (filter by date, pagination)
+- GET /api/wb/orders/stats – aggregated stats
+- GET /api/wb/remains – stock levels by warehouse
+- GET /api/wb/cards – product cards (search, pagination)
+- GET /api/wb/cards/stats – card statistics
+
+### MoySklad
+
+- GET /api/moysklad/stocks – detailed stock by store and product
+- GET /api/moysklad/aggregates – aggregated totals per product
+- GET /api/moysklad/stores – warehouse list
+
+### System
+
+- GET /api/health – service health
+- GET /api/sync/logs – sync job history
+- GET /api/dashboard/stats – summary for dashboard
+- GET /api/charts/orders-daily – daily WB order chart
+- GET /api/charts/ozon-orders-daily – daily Ozon order chart
+
+## Environment Variables
+
+See .env.example:
+
 DB_HOST=localhost
 DB_PORT=5432
+DB_NAME=marketplace
 DB_USER=postgres
 DB_PASSWORD=postgres
-DB_NAME=wb_orders
-WB_API_TOKEN=ваш_токен
-OZON_CLIENT_ID=client_id
-OZON_API_KEY=api_key
-MS_TOKEN=токен_мoйсклад
+DB_SSLMODE=disable
+DB_POOL_MAX=20
+
+# Ozon
+
+OZON_CLIENT_ID=xxx
+OZON_API_KEY=xxx
+
+# Wildberries
+
+WB_API_TOKEN=xxx
+
+# MoySklad
+
+MS_TOKEN=xxx
+
 PORT=3000
+APP_ENV=development
+
+## Deployment
+
+See deploy.md for systemd services and timer setup.
