@@ -29,15 +29,18 @@ func main() {
 	}
 	defer pool.Close()
 
-	orderRepo := repository.NewWbOrderRepo(pool)
-	remainRepo := repository.NewWbRemainRepo(pool)
-	cardRepo := repository.NewWbCardRepo(pool)
-	logRepo := repository.NewSyncLogRepo(pool)
-	msRepo := repository.NewMoyskladRepo(pool)
 	ozonOrderRepo := repository.NewOzonOrderRepo(pool)
 	ozonRemainRepo := repository.NewOzonRemainRepo(pool)
 
-	handler := httphandler.NewHandler(orderRepo, remainRepo, cardRepo, logRepo, msRepo, ozonOrderRepo, ozonRemainRepo)
+	wbOrderRepo := repository.NewWbOrderRepo(pool)
+	wbRemainRepo := repository.NewWbRemainRepo(pool)
+	wbCardRepo := repository.NewWbCardRepo(pool)
+
+	msRepo := repository.NewMoyskladRepo(pool)
+
+	logRepo := repository.NewSyncLogRepo(pool)
+
+	handler := httphandler.NewHandler(ozonOrderRepo, ozonRemainRepo, wbOrderRepo, wbRemainRepo, wbCardRepo, msRepo, logRepo)
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 

@@ -11,166 +11,34 @@ import (
 
 // Handler holds dependencies for HTTP handlers
 type Handler struct {
-	OrderRepo      domain.WbOrderRepository
-	RemainRepo     domain.WbRemainRepository
-	CardRepo       domain.WbCardRepository
-	LogRepo        domain.SyncLogRepository
-	MoySkladRepo   domain.MoyskladRepository
 	OzonOrderRepo  domain.OzonOrderRepository
 	OzonRemainRepo domain.OzonRemainRepository
+	WbOrderRepo    domain.WbOrderRepository
+	WbRemainRepo   domain.WbRemainRepository
+	WbCardRepo     domain.WbCardRepository
+	MoySkladRepo   domain.MoyskladRepository
+	LogRepo        domain.SyncLogRepository
 }
 
 // NewHandler returns a new Handler instance
 func NewHandler(
-	orderRepo domain.WbOrderRepository,
-	remainRepo domain.WbRemainRepository,
-	cardRepo domain.WbCardRepository,
-	logRepo domain.SyncLogRepository,
-	msRepo domain.MoyskladRepository,
 	ozonOrderRepo domain.OzonOrderRepository,
 	ozonRemainRepo domain.OzonRemainRepository,
+	wbOrderRepo domain.WbOrderRepository,
+	wbRemainRepo domain.WbRemainRepository,
+	wbCardRepo domain.WbCardRepository,
+	msRepo domain.MoyskladRepository,
+	logRepo domain.SyncLogRepository,
 ) *Handler {
 	return &Handler{
-		OrderRepo:      orderRepo,
-		RemainRepo:     remainRepo,
-		CardRepo:       cardRepo,
-		LogRepo:        logRepo,
-		MoySkladRepo:   msRepo,
 		OzonOrderRepo:  ozonOrderRepo,
 		OzonRemainRepo: ozonRemainRepo,
+		WbOrderRepo:    wbOrderRepo,
+		WbRemainRepo:   wbRemainRepo,
+		WbCardRepo:     wbCardRepo,
+		MoySkladRepo:   msRepo,
+		LogRepo:        logRepo,
 	}
-}
-
-// GetWbOrders handles GET /api/wb/orders
-func (h *Handler) GetWbOrders(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	limit, offset := parsePagination(r, 100, 0)
-	filter := domain.OrderFilter{
-		From:   r.URL.Query().Get("from"),
-		To:     r.URL.Query().Get("to"),
-		Limit:  limit,
-		Offset: offset,
-	}
-
-	orders, total, err := h.OrderRepo.GetList(ctx, filter)
-	if err != nil {
-		writeError(w, "fetch orders", err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"data": orders,
-		"pagination": map[string]int{
-			"total":  total,
-			"limit":  limit,
-			"offset": offset,
-		},
-	})
-}
-
-// GetWbOrderStats handles GET /api/wb/orders/stats
-func (h *Handler) GetWbOrderStats(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.OrderRepo.GetStats(r.Context())
-	if err != nil {
-		writeError(w, "get order stats", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, stats)
-}
-
-// GetWbOrderDailyChart handles GET /api/charts/orders-daily
-func (h *Handler) GetWbOrderDailyChart(w http.ResponseWriter, r *http.Request) {
-	from := r.URL.Query().Get("from")
-	to := r.URL.Query().Get("to")
-	if from == "" || to == "" {
-		writeError(w, "validate date range", domain.ErrBadRequest("from and to query parameters are required"))
-		return
-	}
-
-	items, err := h.OrderRepo.CountForPeriod(r.Context(), from, to)
-	if err != nil {
-		writeError(w, "count orders for period", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, items)
-}
-
-// GetWbRemains handles GET /api/wb/remains
-func (h *Handler) GetWbRemains(w http.ResponseWriter, r *http.Request) {
-	warehouse := r.URL.Query().Get("warehouse")
-	search := r.URL.Query().Get("search")
-
-	remains, err := h.RemainRepo.GetAll(r.Context(), warehouse, search)
-	if err != nil {
-		writeError(w, "fetch remains", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, remains)
-}
-
-// GetWbCards handles GET /api/wb/cards
-func (h *Handler) GetWbCards(w http.ResponseWriter, r *http.Request) {
-	limit, offset := parsePagination(r, 50, 0)
-	search := r.URL.Query().Get("search")
-
-	cards, total, err := h.CardRepo.GetList(r.Context(), search, limit, offset)
-	if err != nil {
-		writeError(w, "fetch cards", err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"data": cards,
-		"pagination": map[string]int{
-			"total":  total,
-			"limit":  limit,
-			"offset": offset,
-		},
-	})
-}
-
-// GetWbCardStats handles GET /api/wb/cards/stats
-func (h *Handler) GetWbCardStats(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.CardRepo.GetStats(r.Context())
-	if err != nil {
-		writeError(w, "get card stats", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, stats)
-}
-
-// GetMoyskladStocks returns stock details filtered by product and store UUID
-func (h *Handler) GetMoyskladStocks(w http.ResponseWriter, r *http.Request) {
-	productUUID := r.URL.Query().Get("product_uuid")
-	storeUUID := r.URL.Query().Get("store_uuid")
-
-	details, err := h.MoySkladRepo.GetStockDetails(r.Context(), productUUID, storeUUID)
-	if err != nil {
-		writeError(w, "fetch moysklad stocks", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, details)
-}
-
-// GetMoyskladAggregates returns product totals ordered by stock descending
-func (h *Handler) GetMoyskladAggregates(w http.ResponseWriter, r *http.Request) {
-	totals, err := h.MoySkladRepo.GetProductTotals(r.Context())
-	if err != nil {
-		writeError(w, "fetch moysklad aggregates", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, totals)
-}
-
-// GetMoyskladStores returns all MoySklad warehouses
-func (h *Handler) GetMoyskladStores(w http.ResponseWriter, r *http.Request) {
-	stores, err := h.MoySkladRepo.GetStores(r.Context())
-	if err != nil {
-		writeError(w, "fetch moysklad stores", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, stores)
 }
 
 // GetOzonOrders handles GET /api/ozon/orders
@@ -249,6 +117,138 @@ func (h *Handler) GetOzonRemainStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, stats)
+}
+
+// GetWbOrders handles GET /api/wb/orders
+func (h *Handler) GetWbOrders(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	limit, offset := parsePagination(r, 100, 0)
+	filter := domain.OrderFilter{
+		From:   r.URL.Query().Get("from"),
+		To:     r.URL.Query().Get("to"),
+		Limit:  limit,
+		Offset: offset,
+	}
+
+	orders, total, err := h.WbOrderRepo.GetList(ctx, filter)
+	if err != nil {
+		writeError(w, "fetch orders", err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": orders,
+		"pagination": map[string]int{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
+	})
+}
+
+// GetWbOrderStats handles GET /api/wb/orders/stats
+func (h *Handler) GetWbOrderStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.WbOrderRepo.GetStats(r.Context())
+	if err != nil {
+		writeError(w, "get order stats", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+// GetWbOrderDailyChart handles GET /api/charts/orders-daily
+func (h *Handler) GetWbOrderDailyChart(w http.ResponseWriter, r *http.Request) {
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" || to == "" {
+		writeError(w, "validate date range", domain.ErrBadRequest("from and to query parameters are required"))
+		return
+	}
+
+	items, err := h.WbOrderRepo.CountForPeriod(r.Context(), from, to)
+	if err != nil {
+		writeError(w, "count orders for period", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, items)
+}
+
+// GetWbRemains handles GET /api/wb/remains
+func (h *Handler) GetWbRemains(w http.ResponseWriter, r *http.Request) {
+	warehouse := r.URL.Query().Get("warehouse")
+	search := r.URL.Query().Get("search")
+
+	remains, err := h.WbRemainRepo.GetAll(r.Context(), warehouse, search)
+	if err != nil {
+		writeError(w, "fetch remains", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, remains)
+}
+
+// GetWbCards handles GET /api/wb/cards
+func (h *Handler) GetWbCards(w http.ResponseWriter, r *http.Request) {
+	limit, offset := parsePagination(r, 50, 0)
+	search := r.URL.Query().Get("search")
+
+	cards, total, err := h.WbCardRepo.GetList(r.Context(), search, limit, offset)
+	if err != nil {
+		writeError(w, "fetch cards", err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": cards,
+		"pagination": map[string]int{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
+	})
+}
+
+// GetWbCardStats handles GET /api/wb/cards/stats
+func (h *Handler) GetWbCardStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.WbCardRepo.GetStats(r.Context())
+	if err != nil {
+		writeError(w, "get card stats", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+// GetMoyskladStocks returns stock details filtered by product and store UUID
+func (h *Handler) GetMoyskladStocks(w http.ResponseWriter, r *http.Request) {
+	productUUID := r.URL.Query().Get("product_uuid")
+	storeUUID := r.URL.Query().Get("store_uuid")
+
+	details, err := h.MoySkladRepo.GetStockDetails(r.Context(), productUUID, storeUUID)
+	if err != nil {
+		writeError(w, "fetch moysklad stocks", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, details)
+}
+
+// GetMoyskladAggregates returns product totals ordered by stock descending
+func (h *Handler) GetMoyskladAggregates(w http.ResponseWriter, r *http.Request) {
+	totals, err := h.MoySkladRepo.GetProductTotals(r.Context())
+	if err != nil {
+		writeError(w, "fetch moysklad aggregates", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, totals)
+}
+
+// GetMoyskladStores returns all MoySklad warehouses
+func (h *Handler) GetMoyskladStores(w http.ResponseWriter, r *http.Request) {
+	stores, err := h.MoySkladRepo.GetStores(r.Context())
+	if err != nil {
+		writeError(w, "fetch moysklad stores", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, stores)
 }
 
 // GetSyncLogs handles GET /api/sync/logs

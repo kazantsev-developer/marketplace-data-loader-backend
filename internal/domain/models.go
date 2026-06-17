@@ -6,6 +6,50 @@ import (
 	"time"
 )
 
+// OzonOrder represents a posting (order) from the Ozon Seller API
+type OzonOrder struct {
+	PostingNumber      string          `json:"posting_number" db:"posting_number"`
+	OrderID            *int64          `json:"order_id" db:"order_id"`
+	OrderNumber        *string         `json:"order_number" db:"order_number"`
+	Status             *string         `json:"status" db:"status"`
+	DeliveryMethodID   *int64          `json:"delivery_method_id" db:"delivery_method_id"`
+	TplIntegrationType *string         `json:"tpl_integration_type" db:"tpl_integration_type"`
+	CreatedAt          *time.Time      `json:"created_at" db:"created_at"`
+	InProcessAt        *time.Time      `json:"in_process_at" db:"in_process_at"`
+	ShipmentDate       *time.Time      `json:"shipment_date" db:"shipment_date"`
+	DeliveringDate     *time.Time      `json:"delivering_date" db:"delivering_date"`
+	Products           json.RawMessage `json:"products" db:"products"`
+	AnalyticsData      json.RawMessage `json:"analytics_data" db:"analytics_data"`
+	FinancialData      json.RawMessage `json:"financial_data" db:"financial_data"`
+	Scheme             *string         `json:"scheme" db:"scheme"`
+	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+// OzonRemain describes the stock level of a product in Ozon FBO warehouses
+type OzonRemain struct {
+	Sku              int64     `json:"sku" db:"sku"`
+	ProductID        int64     `json:"product_id" db:"product_id"`
+	ItemCode         *string   `json:"item_code" db:"item_code"`
+	Category         *string   `json:"category" db:"category"`
+	Brand            *string   `json:"brand" db:"brand"`
+	Name             *string   `json:"name" db:"name"`
+	FboVisibleAmount int       `json:"fbo_visible_amount" db:"fbo_visible_amount"`
+	FboPresentAmount int       `json:"fbo_present_amount" db:"fbo_present_amount"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	SyncedAt         time.Time `json:"synced_at" db:"synced_at"`
+}
+
+// OzonSyncLog is a specialized log entity for Ozon synchronization jobs
+type OzonSyncLog struct {
+	ID           int        `json:"id" db:"id"`
+	SyncAt       time.Time  `json:"sync_at" db:"sync_at"`
+	Status       string     `json:"status" db:"status"`
+	Scheme       string     `json:"scheme" db:"scheme"`
+	RecordsCount int        `json:"records_count" db:"records_count"`
+	DateFrom     *time.Time `json:"date_from" db:"date_from"`
+	ErrorMessage *string    `json:"error_message" db:"error_message"`
+}
+
 // WbOrder represents a single order retrieved from the Wildberries API
 type WbOrder struct {
 	Srid            string    `json:"srid" db:"srid"`
@@ -58,39 +102,6 @@ type WbCard struct {
 	UpdatedAt       time.Time       `json:"updated_at" db:"updated_at"`
 	CreatedAt       time.Time       `json:"created_at" db:"created_at"`
 	SyncedAt        time.Time       `json:"synced_at" db:"synced_at"`
-}
-
-// OzonOrder represents a posting (order) from the Ozon Seller API
-type OzonOrder struct {
-	PostingNumber      string          `json:"posting_number" db:"posting_number"`
-	OrderID            *int64          `json:"order_id" db:"order_id"`
-	OrderNumber        *string         `json:"order_number" db:"order_number"`
-	Status             *string         `json:"status" db:"status"`
-	DeliveryMethodID   *int64          `json:"delivery_method_id" db:"delivery_method_id"`
-	TplIntegrationType *string         `json:"tpl_integration_type" db:"tpl_integration_type"`
-	CreatedAt          *time.Time      `json:"created_at" db:"created_at"`
-	InProcessAt        *time.Time      `json:"in_process_at" db:"in_process_at"`
-	ShipmentDate       *time.Time      `json:"shipment_date" db:"shipment_date"`
-	DeliveringDate     *time.Time      `json:"delivering_date" db:"delivering_date"`
-	Products           json.RawMessage `json:"products" db:"products"`
-	AnalyticsData      json.RawMessage `json:"analytics_data" db:"analytics_data"`
-	FinancialData      json.RawMessage `json:"financial_data" db:"financial_data"`
-	Scheme             *string         `json:"scheme" db:"scheme"`
-	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
-}
-
-// OzonRemain describes the stock level of a product in Ozon FBO warehouses
-type OzonRemain struct {
-	Sku              int64     `json:"sku" db:"sku"`
-	ProductID        int64     `json:"product_id" db:"product_id"`
-	ItemCode         *string   `json:"item_code" db:"item_code"`
-	Category         *string   `json:"category" db:"category"`
-	Brand            *string   `json:"brand" db:"brand"`
-	Name             *string   `json:"name" db:"name"`
-	FboVisibleAmount int       `json:"fbo_visible_amount" db:"fbo_visible_amount"`
-	FboPresentAmount int       `json:"fbo_present_amount" db:"fbo_present_amount"`
-	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
-	SyncedAt         time.Time `json:"synced_at" db:"synced_at"`
 }
 
 // MsStore represents a warehouse from the MoySklad ERP system
@@ -161,17 +172,6 @@ type SyncLog struct {
 	PagesCount           int        `json:"pages_count" db:"pages_count"`
 	ExecutionTimeSeconds int        `json:"execution_time_seconds" db:"execution_time_seconds"`
 	EntityType           string     `json:"entity_type" db:"entity_type"`
-}
-
-// OzonSyncLog is a specialized log entity for Ozon synchronization jobs
-type OzonSyncLog struct {
-	ID           int        `json:"id" db:"id"`
-	SyncAt       time.Time  `json:"sync_at" db:"sync_at"`
-	Status       string     `json:"status" db:"status"`
-	Scheme       string     `json:"scheme" db:"scheme"`
-	RecordsCount int        `json:"records_count" db:"records_count"`
-	DateFrom     *time.Time `json:"date_from" db:"date_from"`
-	ErrorMessage *string    `json:"error_message" db:"error_message"`
 }
 
 // DailyChartItem holds a single data point for the orders-by-day chart

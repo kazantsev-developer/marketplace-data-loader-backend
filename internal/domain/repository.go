@@ -3,51 +3,6 @@ package domain
 
 import "context"
 
-// WbOrderRepository provides an interface for managing Wildberries orders
-type WbOrderRepository interface {
-	UpsertBatch(ctx context.Context, orders []WbOrder) (int, error)
-	GetList(ctx context.Context, filter OrderFilter) ([]WbOrder, int, error)
-	GetStats(ctx context.Context) (*WbOrderStats, error)
-	CountForPeriod(ctx context.Context, from, to string) ([]DailyChartItem, error)
-}
-
-// OrderFilter contains parameters for filtering Wildberries order lists
-type OrderFilter struct {
-	From   string
-	To     string
-	Limit  int
-	Offset int
-}
-
-// WbOrderStats holds aggregated statistics for Wildberries orders
-type WbOrderStats struct {
-	TotalOrders     int     `json:"total_orders"`
-	CancelledOrders int     `json:"cancelled_orders"`
-	TotalRevenue    float64 `json:"total_revenue"`
-	UniqueProducts  int     `json:"unique_products"`
-}
-
-// WbRemainRepository provides an interface for managing Wildberries stocks
-type WbRemainRepository interface {
-	UpsertBatch(ctx context.Context, remains []WbRemain) (int, error)
-	GetAll(ctx context.Context, warehouse, search string) ([]WbRemain, error)
-}
-
-// WbCardRepository provides an interface for managing Wildberries product cards
-type WbCardRepository interface {
-	UpsertBatch(ctx context.Context, cards []WbCard) (int, error)
-	GetList(ctx context.Context, search string, limit, offset int) ([]WbCard, int, error)
-	GetStats(ctx context.Context) (*WbCardStats, error)
-	GetCursor(ctx context.Context) (*SyncCursorState, error)
-	SaveCursor(ctx context.Context, updatedAt string, nmID int64) error
-}
-
-// WbCardStats holds statistics for Wildberries product cards
-type WbCardStats struct {
-	TotalCards      int `json:"total_cards"`
-	UpdatedLastHour int `json:"updated_last_hour"`
-}
-
 // OzonOrderRepository provides an interface for managing Ozon orders
 type OzonOrderRepository interface {
 	UpsertBatch(ctx context.Context, orders []OzonOrder) (int, error)
@@ -95,6 +50,51 @@ type BrandStat struct {
 	Brand    string `json:"brand"`
 	Products int    `json:"products"`
 	Visible  int    `json:"visible"`
+}
+
+// WbOrderRepository provides an interface for managing Wildberries orders
+type WbOrderRepository interface {
+	UpsertBatch(ctx context.Context, orders []WbOrder) (int, error)
+	GetList(ctx context.Context, filter OrderFilter) ([]WbOrder, int, error)
+	GetStats(ctx context.Context) (*WbOrderStats, error)
+	CountForPeriod(ctx context.Context, from, to string) ([]DailyChartItem, error)
+}
+
+// OrderFilter contains parameters for filtering Wildberries order lists
+type OrderFilter struct {
+	From   string
+	To     string
+	Limit  int
+	Offset int
+}
+
+// WbOrderStats holds aggregated statistics for Wildberries orders
+type WbOrderStats struct {
+	TotalOrders     int     `json:"total_orders"`
+	CancelledOrders int     `json:"cancelled_orders"`
+	TotalRevenue    float64 `json:"total_revenue"`
+	UniqueProducts  int     `json:"unique_products"`
+}
+
+// WbRemainRepository provides an interface for managing Wildberries stocks
+type WbRemainRepository interface {
+	UpsertBatch(ctx context.Context, remains []WbRemain) (int, error)
+	GetAll(ctx context.Context, warehouse, search string) ([]WbRemain, error)
+}
+
+// WbCardRepository provides an interface for managing Wildberries product cards
+type WbCardRepository interface {
+	UpsertBatch(ctx context.Context, cards []WbCard) (int, error)
+	GetList(ctx context.Context, search string, limit, offset int) ([]WbCard, int, error)
+	GetStats(ctx context.Context) (*WbCardStats, error)
+	GetCursor(ctx context.Context) (*SyncCursorState, error)
+	SaveCursor(ctx context.Context, updatedAt string, nmID int64) error
+}
+
+// WbCardStats holds statistics for Wildberries product cards
+type WbCardStats struct {
+	TotalCards      int `json:"total_cards"`
+	UpdatedLastHour int `json:"updated_last_hour"`
 }
 
 // MoyskladRepository provides an interface for managing MoySklad ERP data

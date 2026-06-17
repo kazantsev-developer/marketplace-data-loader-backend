@@ -1,9 +1,20 @@
+-- Ozon
 DROP TABLE IF EXISTS ozon_remains CASCADE;
 
 DROP TABLE IF EXISTS ozon_sync_logs CASCADE;
 
 DROP TABLE IF EXISTS ozon_orders CASCADE;
 
+-- Wildberries
+DROP TABLE IF EXISTS wb_cards CASCADE;
+
+DROP TABLE IF EXISTS wb_remains CASCADE;
+
+DROP TABLE IF EXISTS wb_orders CASCADE;
+
+DROP TABLE IF EXISTS sync_cursor_state CASCADE;
+
+-- MoySklad
 DROP TABLE IF EXISTS ms_product_totals CASCADE;
 
 DROP TABLE IF EXISTS ms_stock_details CASCADE;
@@ -14,14 +25,7 @@ DROP TABLE IF EXISTS ms_stores CASCADE;
 
 DROP TABLE IF EXISTS ms_job_log CASCADE;
 
-DROP TABLE IF EXISTS wb_cards CASCADE;
-
-DROP TABLE IF EXISTS sync_cursor_state CASCADE;
-
-DROP TABLE IF EXISTS wb_remains CASCADE;
-
-DROP TABLE IF EXISTS wb_orders CASCADE;
-
+-- Shared
 DROP TABLE IF EXISTS sync_logs CASCADE;
 
 DROP FUNCTION IF EXISTS update_updated_at_column CASCADE;

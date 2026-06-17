@@ -1,6 +1,6 @@
 // Package main provides the entry point for marketplace synchronization jobs.
 //
-// Usage: go run ./cmd/sync --entity=wb_orders|wb_remains|wb_cards|ozon_orders|ozon_stocks|ms_stocks
+// Usage: go run ./cmd/sync --entity=ozon_orders|ozon_stocks|wb_orders|wb_remains|wb_cards|ms_stocks
 package main
 
 import (
@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	entity := flag.String("entity", "", "entity to sync: wb_orders, wb_remains, wb_cards, ozon_orders, ozon_stocks, ms_stocks")
+	entity := flag.String("entity", "", "entity to sync: ozon_orders, ozon_stocks, wb_orders, wb_remains, wb_cards, ms_stocks")
 	flag.Parse()
 
 	if *entity == "" {
@@ -42,20 +42,38 @@ func main() {
 	syncLogRepo := repository.NewSyncLogRepo(pool)
 
 	switch *entity {
+	case "ozon_orders":
+		runOzonOrders(ctx, cfg, pool, syncLogRepo)
+	case "ozon_stocks":
+		runOzonStocks(ctx, cfg, pool, syncLogRepo)
 	case "wb_orders":
 		runWbOrders(ctx, cfg, pool, syncLogRepo)
 	case "wb_remains":
 		runWbRemains(ctx, cfg, pool, syncLogRepo)
 	case "wb_cards":
 		runWbCards(ctx, cfg, pool, syncLogRepo)
-	case "ozon_orders":
-		runOzonOrders(ctx, cfg, pool, syncLogRepo)
-	case "ozon_stocks":
-		runOzonStocks(ctx, cfg, pool, syncLogRepo)
 	case "ms_stocks":
 		runMsStocks(ctx, cfg, pool, syncLogRepo)
 	default:
 		log.Fatalf("unknown entity: %s", *entity)
+	}
+}
+
+func runOzonOrders(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, logRepo *repository.SyncLogRepo) {
+	ozonClient := client.NewOzonOrdersClient(cfg.Ozon)
+	orderRepo := repository.NewOzonOrderRepo(pool)
+	svc := service.NewOzonOrdersService(orderRepo, ozonClient, logRepo, cfg.Ozon)
+	if err := svc.SyncOzonOrders(ctx); err != nil {
+		log.Fatalf("ozon orders sync failed: %v", err)
+	}
+}
+
+func runOzonStocks(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, logRepo *repository.SyncLogRepo) {
+	ozonStocksClient := client.NewOzonStocksClient(cfg.Ozon)
+	stocksRepo := repository.NewOzonRemainRepo(pool)
+	svc := service.NewOzonStocksService(stocksRepo, ozonStocksClient, logRepo)
+	if err := svc.SyncOzonStocks(ctx); err != nil {
+		log.Fatalf("ozon stocks sync failed: %v", err)
 	}
 }
 
@@ -83,24 +101,6 @@ func runWbCards(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log
 	svc := service.NewCardsService(cardsRepo, cardsClient, logRepo, cfg.Settings.BatchSize, cfg.Settings.BatchDelayMs)
 	if err := svc.SyncCards(ctx); err != nil {
 		log.Fatalf("wb cards sync failed: %v", err)
-	}
-}
-
-func runOzonOrders(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, logRepo *repository.SyncLogRepo) {
-	ozonClient := client.NewOzonOrdersClient(cfg.Ozon)
-	orderRepo := repository.NewOzonOrderRepo(pool)
-	svc := service.NewOzonOrdersService(orderRepo, ozonClient, logRepo, cfg.Ozon)
-	if err := svc.SyncOzonOrders(ctx); err != nil {
-		log.Fatalf("ozon orders sync failed: %v", err)
-	}
-}
-
-func runOzonStocks(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, logRepo *repository.SyncLogRepo) {
-	ozonStocksClient := client.NewOzonStocksClient(cfg.Ozon)
-	stocksRepo := repository.NewOzonRemainRepo(pool)
-	svc := service.NewOzonStocksService(stocksRepo, ozonStocksClient, logRepo)
-	if err := svc.SyncOzonStocks(ctx); err != nil {
-		log.Fatalf("ozon stocks sync failed: %v", err)
 	}
 }
 

@@ -10,37 +10,13 @@ import (
 
 // Config holds all configuration parameters for the application
 type Config struct {
-	WB       WbConfig       `envconfig:"WB"`
-	DB       DBConfig       `envconfig:"DB"`
 	Ozon     OzonConfig     `envconfig:"OZON"`
+	WB       WbConfig       `envconfig:"WB"`
 	MS       MoyskladConfig `envconfig:"MS"`
+	DB       DBConfig       `envconfig:"DB"`
 	Settings SettingsConfig `envconfig:"SETTINGS"`
 	Port     int            `envconfig:"PORT" default:"3000"`
 	Env      string         `envconfig:"APP_ENV" default:"development"`
-}
-
-// WbConfig contains Wildberries API connection parameters
-type WbConfig struct {
-	Token             string        `envconfig:"API_TOKEN" required:"true"`
-	BaseURL           string        `envconfig:"BASE_URL" default:"https://wildberries.ru"`
-	OrdersEndpoint    string        `envconfig:"ORDERS_ENDPOINT" default:"/api/v1/supplier/orders"`
-	Timeout           time.Duration `envconfig:"TIMEOUT" default:"30s"`
-	MaxRetries        int           `envconfig:"MAX_RETRIES" default:"3"`
-	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"61000"`
-	Flag              int           `envconfig:"FLAG" default:"0"`
-}
-
-// DBConfig contains PostgreSQL connection pool parameters
-type DBConfig struct {
-	Host              string `envconfig:"HOST" required:"true"`
-	Port              int    `envconfig:"PORT" default:"5432"`
-	Name              string `envconfig:"NAME" required:"true"`
-	User              string `envconfig:"USER" required:"true"`
-	Password          string `envconfig:"PASSWORD" required:"true"`
-	SSLMode           string `envconfig:"SSLMODE" default:"disable"`
-	PoolMax           int    `envconfig:"POOL_MAX" default:"20"`
-	PoolIdleTimeoutMs int    `envconfig:"POOL_IDLE_TIMEOUT_MS" default:"30000"`
-	PoolConnTimeoutMs int    `envconfig:"POOL_CONN_TIMEOUT_MS" default:"5000"`
 }
 
 // OzonConfig contains Ozon Seller API connection parameters
@@ -55,6 +31,17 @@ type OzonConfig struct {
 	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"200"`
 }
 
+// WbConfig contains Wildberries API connection parameters
+type WbConfig struct {
+	Token             string        `envconfig:"API_TOKEN" required:"true"`
+	BaseURL           string        `envconfig:"BASE_URL" default:"https://wildberries.ru"`
+	OrdersEndpoint    string        `envconfig:"ORDERS_ENDPOINT" default:"/api/v1/supplier/orders"`
+	Timeout           time.Duration `envconfig:"TIMEOUT" default:"30s"`
+	MaxRetries        int           `envconfig:"MAX_RETRIES" default:"3"`
+	PaginationDelayMs int           `envconfig:"PAGINATION_DELAY_MS" default:"61000"`
+	Flag              int           `envconfig:"FLAG" default:"0"`
+}
+
 // MoyskladConfig contains MoySklad JSON API integration parameters
 type MoyskladConfig struct {
 	Token               string        `envconfig:"TOKEN" required:"true"`
@@ -64,6 +51,19 @@ type MoyskladConfig struct {
 	RetryDelayMs        int           `envconfig:"RETRY_DELAY_MS" default:"5000"`
 	PaginationDelayMs   int           `envconfig:"PAGINATION_DELAY_MS" default:"2000"`
 	HeavyRequestDelayMs int           `envconfig:"HEAVY_REQUEST_DELAY_MS" default:"20000"`
+}
+
+// DBConfig contains PostgreSQL connection pool parameters
+type DBConfig struct {
+	Host              string `envconfig:"HOST" required:"true"`
+	Port              int    `envconfig:"PORT" default:"5432"`
+	Name              string `envconfig:"NAME" required:"true"`
+	User              string `envconfig:"USER" required:"true"`
+	Password          string `envconfig:"PASSWORD" required:"true"`
+	SSLMode           string `envconfig:"SSLMODE" default:"disable"`
+	PoolMax           int    `envconfig:"POOL_MAX" default:"20"`
+	PoolIdleTimeoutMs int    `envconfig:"POOL_IDLE_TIMEOUT_MS" default:"30000"`
+	PoolConnTimeoutMs int    `envconfig:"POOL_CONN_TIMEOUT_MS" default:"5000"`
 }
 
 // SettingsConfig holds global synchronization parameters
