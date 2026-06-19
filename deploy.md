@@ -12,9 +12,9 @@ The bare-metal or virtual machine target runtime deployment environment requires
 
 ## Binary Compilation Pipelines
 
-1. Navigate directly to the synchronized deployment application deployment directory:
+1. Navigate directly to the synchronized deployment application repository directory:
    ```bash
-   cd /opt/marketplace-data-loader
+   cd /opt/marketplace-data-loader-backend
    ```
 
 2. Compile optimized production-grade static binary assets targeting the REST API server daemon and the localized execution utility:
@@ -56,12 +56,12 @@ Wants=postgresql.service
 Type=simple
 User=app
 Group=app
-WorkingDirectory=/opt/marketplace-data-loader
-ExecStart=/opt/marketplace-data-loader/bin/server
+WorkingDirectory=/opt/marketplace-data-loader-backend
+ExecStart=/opt/marketplace-data-loader-backend/bin/server
 Restart=on-failure
 RestartSec=10s
 LimitNOFILE=65536
-EnvironmentFile=/opt/marketplace-data-loader/.env
+EnvironmentFile=/opt/marketplace-data-loader-backend/.env
 
 [Install]
 WantedBy=multi-user.target
@@ -80,11 +80,11 @@ After=network.target postgresql.service
 Type=oneshot
 User=app
 Group=app
-WorkingDirectory=/opt/marketplace-data-loader
-ExecStart=/opt/marketplace-data-loader/bin/sync --entity=%i
+WorkingDirectory=/opt/marketplace-data-loader-backend
+ExecStart=/opt/marketplace-data-loader-backend/bin/sync --entity=%i
 StandardOutput=journal
 StandardError=journal
-EnvironmentFile=/opt/marketplace-data-loader/.env
+EnvironmentFile=/opt/marketplace-data-loader-backend/.env
 ```
 
 ## Persistent Automated Processing (systemd Timers)
@@ -154,7 +154,7 @@ curl -I http://localhost:3000/api/health
 
 Verify transaction processing pipeline stability and PostgreSQL storage mutations by firing a direct immediate manual synchronization task runner block:
 ```bash
-/opt/marketplace-data-loader/bin/sync --entity=ozon_orders
+/opt/marketplace-data-loader-backend/bin/sync --entity=ozon_orders
 ```
 
 ### Telemetry & Log Inspection
