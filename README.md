@@ -1,11 +1,13 @@
 # Marketplace Monitor Platform (Backend)
 
-Core data synchronization engine and backend monolith for the Marketplace Monitor Platform ecosystem. Built with Go 1.24, Gin, GORM, and PostgreSQL 16. Provides a high-performance, concurrent, and low-latency REST API to aggregate and stream real-time orders, warehouse stock telemetry, and product catalog metadata from Ozon, Wildberries, and MoySklad.
+Core data synchronization engine and high-performance backend monolith for the Marketplace Monitor Platform ecosystem. Engineered with Go 1.24, pgx/v5, scany, and PostgreSQL 16. Provides a concurrent, low-allocation, and low-latency REST API to aggregate and stream real-time orders, warehouse stock telemetry, and product catalog metadata from Ozon, Wildberries, and MoySklad.
 
 ## Tech Stack
 
-- **Runtime Environment** — Go 1.24 or higher (Concurrent execution pools)
-- **Database Engine** — PostgreSQL 16 or higher (Relational mapping ledger)
+- **Runtime Environment** — Go 1.24 or higher (Concurrent execution pools & lightweight routines)
+- **Database Driver** — pgx/v5 (High-performance, low-allocation PostgreSQL driver & connection pool)
+- **Data Mapping** — scany/v2 (Efficient database rows-to-struct scanning utility)
+- **Configuration** — envconfig (Atomic environment variable parsing layout)
 - **Container Architecture** — Docker / Docker Compose orchestration layers
 
 ## Key Architectural Features
