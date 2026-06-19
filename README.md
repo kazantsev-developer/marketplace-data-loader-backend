@@ -24,7 +24,7 @@ Core data synchronization engine and high-performance backend monolith for the M
 
 Clone the tracking branch context and navigate into the project workspace boundary:
 ```bash
-git clone <repo-url>
+git clone https://github.com/kazantsev-developer/marketplace-data-loader-backend.git
 cd marketplace-data-loader-backend
 ```
 
